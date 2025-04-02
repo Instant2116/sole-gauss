@@ -48,7 +48,7 @@ namespace SoLE_Gauss
                     }
                     else if (a2.Value == -1)
                     {
-                        le += "-"+a2.Key;
+                        le += "-" + a2.Key;
                     }
                 }
                 Console.WriteLine(le + "=" + rhs[i]);

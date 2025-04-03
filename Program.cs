@@ -9,18 +9,7 @@ namespace SoLE_Gauss
 {
     class Program
     {
-        static double[][] a =
-        {
-            new double[] {1,0,1,6},
-            new double[] {0,-3,1,7},
-            new double[] {2,1,3,15}
-};
-        static double[][] a1 =
-        {
-            new double[] {2,1,-2,3},
-            new double[] {1,-1,-1,0},
-            new double[] {1,1,3,12}
-};
+
         static string path = "SimpleSoLE4.txt";
         public static void Main()
         {

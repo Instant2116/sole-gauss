@@ -8,12 +8,18 @@ namespace SoLE_Gauss
 {
     internal class GaussElimination
     {
-        double[][] matrix;
-        public GaussElimination(double[][] matrix)
+        double[][] sole;//system of linear equations
+        Dictionary<int, double> solution { get; set; }
+        public GaussElimination(double[][] sole)
         {
-            this.matrix = matrix;
+            this.sole = sole;
+            this.solution = new Dictionary<int, double>();
         }
-        public double[][] Eliminate()//regular elimination
+        public double[][] Eliminate()
+        {
+            return Eliminate(this.sole);
+        }
+        public static double[][] Eliminate(double[][] matrix)//regular elimination
         {
             //Pivot Selection
             for (int i = 0; i < matrix.Length - 1; i++) //go through rows; 
@@ -68,7 +74,12 @@ namespace SoLE_Gauss
             }
             return matrix;
         }
-        public Dictionary<int, double> Solve()
+        public Dictionary<int,double> Solve()
+        {
+            solution = Solve(this.sole);
+            return solution;
+        }
+        public Dictionary<int, double> Solve(double[][] matrix)
         {//only after all eliminations
             Dictionary<int, double> res = new Dictionary<int, double>();
             int a = matrix.Length;
@@ -93,15 +104,38 @@ namespace SoLE_Gauss
             }
             return res;
         }
+        public bool CheckSolutionQuick()
+        {
+            return CheckSolutionQuick(this.solution);
+        }
+        public bool CheckSolution()
+        {
+            return CheckSolution(this.solution);
+        }
         public bool CheckSolutionQuick(Dictionary<int, double> sol)
         {
-            double rhs = matrix[0][matrix.Length];
+            double rhs = sole[0][sole.Length];
             double sum = 0;
-            for (int i = 0; i < matrix[0].Length-1; i++)
+            for (int i = 0; i < sole[0].Length-1; i++)
             {
-                sum += matrix[0][i] * sol[i];
+                sum += sole[0][i] * sol[i];
             }
             return sum == rhs;
+        }
+        public bool CheckSolution(Dictionary<int, double> sol)
+        {
+            foreach (double[] line in sole)
+            {
+                double rhs = line[sole.Length];
+                double sum = 0;
+                for (int i = 0; i < sole[0].Length - 1; i++)
+                {
+                    sum += line[i] * sol[i];
+                }
+                if (sum != rhs)
+                    return false;
+            }
+            return true;
         }
         public static void swapRows(double[][] matrix, int i1, int i2)
         {//no need to return as it works with references

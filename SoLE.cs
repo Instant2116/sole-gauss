@@ -249,7 +249,7 @@ namespace SoLE_Gauss
         public static bool IsMathOperand(char c)
         {//there is different unicode characters that also used as math symbols and some of the very similar
          //like U+002D Hyphen-Minus '-' (standart keyboard minus) and U+2212 Minus Sign'−' 
-         //make shure you don't put in wierd shit like that
+         //make shure you don't put in wierd symbols like that
             return c == '+' || c == '-' || c == '*' || c == '/'; //|| c == '=';
         }
         public static string FormatRepeatingDecimal(string s)

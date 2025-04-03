@@ -21,17 +21,29 @@ namespace SoLE_Gauss
             new double[] {1,-1,-1,0},
             new double[] {1,1,3,12}
 };
-        string path = "SimpleSoLE1.txt";
+        static string path = "SimpleSoLE4.txt";
         public static void Main()
         {
-            GaussElimination.swapRows(a1, 1, 2);
-            for (int i = 0; i < a1.Length; i++)
+
+            string rPath = Resources.Path + path;
+            SoLE les = new SoLE(rPath);
+            double[][] m = les.GetMatrix();
+
+            foreach (var r in m)
             {
-                for (int j = 0; j < a1[i].Length; j++)
+                foreach (var n in r)
                 {
-                    Console.Write(a1[i][j] + " ");
+                    Console.Write(n + ";");
                 }
                 Console.WriteLine();
+            }
+            GaussElimination gaussElimination = new GaussElimination(m);
+            gaussElimination.Eliminate();
+            var sol = gaussElimination.Solve();
+            Console.WriteLine($"Solution fit as result: {gaussElimination.CheckSolutionQuick(sol)}");
+            foreach (var i  in sol)
+            {
+                Console.WriteLine($"var: {i.Key};\tval: {i.Value}");
             }
 
             /*
@@ -57,26 +69,6 @@ namespace SoLE_Gauss
 
 
         }
-
-
-        public static string FormatRepeatingDecimal(string s)
-        {
-            string separator = NumberFormatInfo.CurrentInfo.CurrencyDecimalSeparator;// it can be ',' or '.' or what ever
-            if (s.Contains(separator))
-            {
-                string ss = s.ToString().Split(separator)[1];
-                if (ss[0] == ss[1] && ss[1] == ss[2])
-                {
-                    ss = $".({ss[0]})";
-                }
-                ss = s.ToString().Split(',')[0] + ss;
-                return ss;
-            }
-            else
-            {
-                return s;
-            }
-        }
     }
 }
 
@@ -84,14 +76,8 @@ namespace SoLE_Gauss
 
 
 
+
 /*
-
-/*SoLE simple = new SoLE(Resources.Path + path);
-simple.show();
-
-
-
-
 
 /*
 

@@ -4,13 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace SoLE_Gauss
 {
     internal class SoLE // System of Linear Equations
     {
-        List<string> variables;
-        List<Dictionary<string, double>> coefficients;//List of coefficients 
+        public HashSet<string> variables { get; }
+        List<Dictionary<string, double>> coefficients{ get; }//List of coefficients 
         List<double> rhs; //right-hand side aka constants on the right side of '='
         Dictionary<string, double> solution;
         List<string> rawSoLE;
@@ -18,7 +20,7 @@ namespace SoLE_Gauss
         public SoLE(string path)
         {
             this.path = path;
-            this.variables = new List<string>();
+            this.variables = new HashSet<string>();
             this.solution = new Dictionary<string, double>();
             this.coefficients = new List<Dictionary<string, double>>();
             this.rhs = new List<double>();
@@ -40,7 +42,7 @@ namespace SoLE_Gauss
                     }
                     if (a2.Value != 0 && a2.Value != 1 && a2.Value != -1)
                     {
-                        le += a2.Value + a2.Key;
+                        le += FormatRepeatingDecimal(a2.Value.ToString()) + a2.Key;
                     }
                     else if (a2.Value == 1)
                     {
@@ -54,6 +56,26 @@ namespace SoLE_Gauss
                 Console.WriteLine(le + "=" + rhs[i]);
             }
         }
+        
+        public double[][] GetMatrix()
+        {
+            double[][] res = new double[coefficients.Count][];//coefficients.Count
+            for (int i = 0; i <coefficients.Count;i++)
+            {
+                var d = coefficients[i];
+                List<double> line = new List<double>();
+                foreach (var v in variables)
+                {
+                    if(d.ContainsKey(v))
+                        line.Add(d[v]);
+                    else//if line does not contain variable, the variable must be 0, like 0*x does not show up in regular equetions
+                        line.Add(0);
+                }
+                line.Add(rhs[i]);
+                res[i] = line.ToArray();
+            }
+            return res;
+        }
         List<string> ReadSoLE(string path)
         {
             try
@@ -63,16 +85,16 @@ namespace SoLE_Gauss
             catch (FileNotFoundException)
             {
                 Console.WriteLine("File not found.");
-                return null;
+                return new List<string>();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"An error occurred: {ex.Message}");
-                return null;
+                return new List<string>();
             }
         }
         void ParseData()
-        {//not handling 3*x, only 3x, need an update
+        {//not handling 3*x, only 3x, need an update for that case
             if (rawSoLE == null)
             {
                 Console.WriteLine("No data to parse");
@@ -89,11 +111,14 @@ namespace SoLE_Gauss
                 string[] equetionParts = line.Split('=');//[0] - left, [1] - right
                 equetionParts[0] = equetionParts[0].Replace("-", "|-");
                 equetionParts[0] = equetionParts[0].Replace("+", "|+");
-                string[] tokens = equetionParts[0].Split('|');
+                List<string> tokens = new List<string>(equetionParts[0].Split('|'));
+                if (string.IsNullOrEmpty(Regex.Replace(tokens[0], @"\s+", "")))
+                    tokens.Remove(tokens[0]);//edge case when line starts with '-'
                 Dictionary<string, double> values = new Dictionary<string, double>();
                 foreach (string token in tokens)
                 {
                     var a = ParseToken(token);
+                    variables.Add(a.Key);
                     values[a.Key] = a.Value;
                 }
                 coefficients.Add(values);
@@ -121,6 +146,8 @@ namespace SoLE_Gauss
                     break;
                 default:
                     Console.WriteLine($"Unknown character: {token[0]}");
+                    if (CharUnicodeInfo.GetUnicodeCategory('+') == CharUnicodeInfo.GetUnicodeCategory(token[0]))
+                        Console.WriteLine("Wierd math symbols detected! Format text before letting it in!");
                     return false;
             }
             for (int i = 1; i < token.Length; i++)
@@ -138,6 +165,8 @@ namespace SoLE_Gauss
                         newType = 3;
                         break;
                     default:
+                        if (CharUnicodeInfo.GetUnicodeCategory('+') == CharUnicodeInfo.GetUnicodeCategory(token[i]))
+                            Console.WriteLine("Wierd math symbols detected! Format text before letting it in!");
                         Console.WriteLine($"Unknown character: {token[i]}");
                         return false;
                 }
@@ -165,12 +194,13 @@ namespace SoLE_Gauss
         static Token ParseTokenData(string token)
         {
             Token result = new Token();
+            //token = token.Trim();//removes sides
+            token = Regex.Replace(token, @"\s+", "");//removes all white spaces
             if (!ValidateToken(token))
             {
                 Console.WriteLine("Invalid token");
                 return result;
             }
-            token.Trim();
             char sign;
             string number = "";
             string variable = "";
@@ -217,15 +247,35 @@ namespace SoLE_Gauss
         }
 
         public static bool IsMathOperand(char c)
-        {
+        {//there is different unicode characters that also used as math symbols and some of the very similar
+         //like U+002D Hyphen-Minus '-' (standart keyboard minus) and U+2212 Minus Sign'−' 
+         //make shure you don't put in wierd shit like that
             return c == '+' || c == '-' || c == '*' || c == '/'; //|| c == '=';
         }
-    }
+        public static string FormatRepeatingDecimal(string s)
+        {
+            string separator = NumberFormatInfo.CurrentInfo.CurrencyDecimalSeparator;// it can be ',' or '.' or what ever
+            if (s.Contains(separator))
+            {
+                string ss = s.ToString().Split(separator)[1];
+                if (ss[0] == ss[1] && ss[1] == ss[2])
+                {
+                    ss = $".({ss[0]})";
+                }
+                ss = s.ToString().Split(',')[0] + ss;
+                return ss;
+            }
+            else
+            {
+                return s;
+            }
+        }
 
-    struct Token
-    {
-        public char sign;
-        public double value;
-        public string variable;
+        struct Token
+        {
+            public char sign;
+            public double value;
+            public string variable;
+        }
     }
 }

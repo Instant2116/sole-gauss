@@ -93,7 +93,16 @@ namespace SoLE_Gauss
             }
             return res;
         }
-
+        public bool CheckSolutionQuick(Dictionary<int, double> sol)
+        {
+            double rhs = matrix[0][matrix.Length];
+            double sum = 0;
+            for (int i = 0; i < matrix[0].Length-1; i++)
+            {
+                sum += matrix[0][i] * sol[i];
+            }
+            return sum == rhs;
+        }
         public static void swapRows(double[][] matrix, int i1, int i2)
         {//no need to return as it works with references
             double[] t = matrix[i1];

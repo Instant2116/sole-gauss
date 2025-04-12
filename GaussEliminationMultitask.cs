@@ -1,35 +1,40 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace SoLE_Gauss
 {
-    internal class GaussElimination
+    internal class GaussEliminationMultitask
     {
+
         double[][] sole;//system of linear equations
-        Dictionary<int, double> solution { get; set; }
-        public bool singularityFlag { get; private set; }
-        public GaussElimination(double[][] sole)
+        Dictionary<int, double> solution;
+        bool singularityFlag;
+        public int Threads { get; set; }
+
+        public GaussEliminationMultitask(double[][] matrix, int threads)
         {
-            this.sole = sole;
-            this.solution = new Dictionary<int, double>();
             singularityFlag = false;
+            this.sole = matrix;
+            solution = new Dictionary<int, double>();
+            Threads = threads;
         }
         public double[][] Eliminate()
         {
-            var r = Eliminate(this.sole);
-            this.singularityFlag = r.Item2;
-            return r.Item1;
+            return Eliminate(this.sole);
         }
-        public static (double[][],bool) Eliminate(double[][] matrix)//regular elimination
+
+        public double[][] Eliminate(double[][] matrix)//regular elimination
         {
-            bool singularityFlag = false;
             //Pivot Selection
-            for (int i = 0; i < matrix.Length - 1; i++) //go through rows; 
-            {//- 1 because the last variable does not need elimination
+
+            for (int i = 0; i < matrix.Length; i++)
+            {
                 double pivot;
+                //- 1 because the last variable does not need elimination
                 //pick pivot
                 if (matrix[i][i] != 0)
                 {//all good
@@ -40,52 +45,57 @@ namespace SoLE_Gauss
                     //swap
                     if (matrix[i][i] == 0)
                     {
-                        singularityFlag = true;
+                        //matrix is always solvable (c)Stetsenko
+                        bool singularityFlag = true; 
                         for (int j = i; j < matrix.Length - 1; j++)
                         {
                             if (matrix[i][j] != 0)
                             {
-                                singularityFlag = false;
+                                //singularityFlag = false;
                                 swapRows(matrix, i, j);
                                 break;
                             }
                         }
                         if (singularityFlag)
                         {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
-                            Console.WriteLine("Panic");
-                            return (matrix, singularityFlag);
+                            this.singularityFlag = true;
+                            Console.WriteLine("Panic - singularity");
+                            return matrix;
                         }
                     }
                     pivot = matrix[i][i];
                 }
-
+                //technicly can lock on matrix[i] or matrix[m],
+                //but they aquire access to pointer of a subarray and never intervene each other
                 //Normalization 
-                for (int j = 0; j < matrix[i].Length; j++)//go through elements of the picked row
+                Parallel.For(0, matrix[i].Length, new ParallelOptions { MaxDegreeOfParallelism = this.Threads },
+                    j =>//go through elements of the picked row
                 {
-                    matrix[i][j] /= pivot;//floating point mantise error
-
-               }
+                    matrix[i][j] /= pivot;
+                    //matrix[i][j] = Math.Round(matrix[i][j], 5, MidpointRounding.ToEven); // fight floating-point errors 
+                });
                 //Gaussian Elimination
-                for (int m = 0; m < matrix.Length; m++)//go through rest of rows
+                Parallel.For(0, matrix.Length, new ParallelOptions { MaxDegreeOfParallelism = this.Threads },
+                    m =>
                 {
-                    if (m == i) //do not self-eliminate
-                        continue;
-                    double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
-                    for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
+                    if (m != i) //do not self-eliminate
                     {
-                        matrix[m][n] -= matrix[i][n] * coeficient;
+                        double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
+                        for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
+                            matrix[m][n] -= matrix[i][n] * coeficient;
                     }
-                }
+                });
             }
             //correct RHS from  floating-point errors
-            for(int i = 0; i < matrix.Length; i++)
+            for (int i = 0; i < matrix.Length; i++)
             {
-                matrix[i][matrix[i].Length-1] = Math.Round(matrix[i][matrix[i].Length-1], 5, MidpointRounding.ToEven);
+                matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], 5, MidpointRounding.ToEven);
                 //matrix[i][j] = Math.Round(matrix[i][j], 5, MidpointRounding.ToEven);// fight 
             }
-            return (matrix, singularityFlag);
+            return matrix;
         }
-        public Dictionary<int,double> Solve()
+
+        public Dictionary<int, double> Solve()
         {
             solution = Solve(this.sole);
             return solution;
@@ -116,6 +126,14 @@ namespace SoLE_Gauss
             }
             return res;
         }
+
+        public static void swapRows(double[][] matrix, int i1, int i2)
+        {//no need to return as it works with references
+            double[] t = matrix[i1];
+            matrix[i1] = matrix[i2];
+            matrix[i2] = t;
+            //return matrix;
+        }
         public bool CheckSolutionQuick()
         {
             return CheckSolutionQuick(this.solution);
@@ -128,7 +146,7 @@ namespace SoLE_Gauss
         {
             double rhs = sole[0][sole.Length];
             double sum = 0;
-            for (int i = 0; i < sole[0].Length-1; i++)
+            for (int i = 0; i < sole[0].Length - 1; i++)
             {
                 sum += sole[0][i] * sol[i];
             }
@@ -148,13 +166,6 @@ namespace SoLE_Gauss
                     return false;
             }
             return true;
-        }
-        public static void swapRows(double[][] matrix, int i1, int i2)
-        {//no need to return as it works with references
-            double[] t = matrix[i1];
-            matrix[i1] = matrix[i2];
-            matrix[i2] = t;
-            //return matrix;
         }
         public void showSoLE()
         {

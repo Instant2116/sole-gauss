@@ -245,7 +245,6 @@ namespace SoLE_Gauss
             result.sign = sign;
             return result;
         }
-
         public static bool IsMathOperand(char c)
         {//there is different unicode characters that also used as math symbols and some of the very similar
          //like U+002D Hyphen-Minus '-' (standart keyboard minus) and U+2212 Minus Sign'−' 
@@ -270,12 +269,80 @@ namespace SoLE_Gauss
                 return s;
             }
         }
-
         struct Token
         {
             public char sign;
             public double value;
             public string variable;
+        }
+        public static (int[][] A, double[] b) GenerateSolvableSystem(int n)
+        {
+            
+            Random rand = new Random();
+            int[][] A = new int[n][];
+            for (int i = 0; i < n; i++)
+            {
+                A[i] = new int[n];
+                for (int j = 0; j < n; j++)
+                {
+                    A[i][j] = rand.Next(1,10); 
+                }
+            }
+            //matrix must have a determinant
+            while (Determinant(A) == 0)
+            {
+                // Regenerate matrix A until it is non-singular (det != 0)
+                for (int i = 0; i < n; i++)
+                {
+                    for (int j = 0; j < n; j++)
+                    {
+                        A[i][j] = rand.Next(1, 100);
+                    }
+                }
+            }
+
+            //Generate the right-hand side
+            double[] x = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                x[i] = rand.Next(1,100);  // Random solution values, no double, because mantisa overflow suffering
+            }
+
+            double[] b = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                b[i] = 0;
+                for (int j = 0; j < n; j++)
+                {
+                    b[i] += A[i][j] * x[j];
+                }
+            }
+            return (A, b);
+        }
+        public static int[][] getSubMatrixDeterminant(int[][] A)
+        {
+            int[][] B = new int[A.Length - 1][];
+            for (int i = 0; i < B.Length; i++)
+            {
+                B[i] = new int[A[i].Length - 1];
+                Array.Copy(A[i + 1], 1, B[i], 0, B.Length);
+            }
+            return B;
+        }
+
+        public static double Determinant(int[][] matrix)
+        {
+            int n = matrix.Length;
+            if (n == 1)
+                return matrix[0][0];
+
+            double det = 0;
+            for (int j = 0; j < n; j++)
+            {
+                int[][] subMatrix = getSubMatrixDeterminant(matrix);//getSubMatrix(matrix, 0, j);
+                det += (j % 2 == 0 ? 1 : -1) * matrix[0][j] * Determinant(subMatrix);
+            }
+            return det;
         }
     }
 }

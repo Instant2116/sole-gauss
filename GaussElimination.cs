@@ -9,11 +9,14 @@ namespace SoLE_Gauss
     internal class GaussElimination
     {
         double[][] sole;//system of linear equations
+        double[][] soleOriginal;
         Dictionary<int, double> solution { get; set; }
-        public bool singularityFlag { get; private set; }
-        public GaussElimination(double[][] sole)
+        public bool singularityFlag { get; private set;}
+        static int marginOfTolerance = 8; //the number of digits after dot to account the calculation error from mantisa overflow - i hate it.
+        public GaussElimination(double[][] matrix)
         {
-            this.sole = sole;
+            this.sole = Matrix.Copy(matrix); 
+            soleOriginal = Matrix.Copy(matrix);
             this.solution = new Dictionary<int, double>();
             singularityFlag = false;
         }
@@ -23,11 +26,11 @@ namespace SoLE_Gauss
             this.singularityFlag = r.Item2;
             return r.Item1;
         }
-        public static (double[][],bool) Eliminate(double[][] matrix)//regular elimination
+        public static (double[][] matrix,bool singularityFlag) Eliminate(double[][] matrix)//regular elimination to identity matrix
         {
             bool singularityFlag = false;
             //Pivot Selection
-            for (int i = 0; i < matrix.Length - 1; i++) //go through rows; 
+            for (int i = 0; i < matrix.Length; i++) //go through rows; 
             {//- 1 because the last variable does not need elimination
                 double pivot;
                 //pick pivot
@@ -78,12 +81,68 @@ namespace SoLE_Gauss
                 }
             }
             //correct RHS from  floating-point errors
+            
             for(int i = 0; i < matrix.Length; i++)
             {
-                matrix[i][matrix[i].Length-1] = Math.Round(matrix[i][matrix[i].Length-1], 5, MidpointRounding.ToEven);
-                //matrix[i][j] = Math.Round(matrix[i][j], 5, MidpointRounding.ToEven);// fight 
+                matrix[i][matrix[i].Length-1] = Math.Round(matrix[i][matrix[i].Length-1], marginOfTolerance, MidpointRounding.ToEven);
             }
             return (matrix, singularityFlag);
+        }
+        public static double[][] EliminatePartial(double[][] matrixOrigin)//partial elimination, creates echelon form matrix (also called triangular form) 
+        {
+            double[][] matrix = Matrix.Copy(matrixOrigin);
+            for (int i = 0; i < matrix.Length; i++) //go through rows; 
+            {//- 1 because the last variable does not need elimination
+                double pivot;
+                //pick pivot
+                if (matrix[i][i] != 0)
+                {//all good
+                    pivot = matrix[i][i];
+                }
+                else
+                {//pivot is 0, need rows swapping 
+                    //swap
+                    if (matrix[i][i] == 0)
+                    {
+                        bool singularityFlag = true;
+                        for (int j = i; j < matrix.Length - 1; j++)
+                        {
+                            if (matrix[i][j] != 0)
+                            {
+                                singularityFlag = false;
+                                swapRows(matrix, i, j);
+                                break;
+                            }
+                        }
+                        if (singularityFlag)
+                        {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
+                            Console.WriteLine("Panic");
+                            return matrix;
+                        }
+                    }
+                    pivot = matrix[i][i];
+                }
+
+                //Normalization 
+                double[] normilizedLine = new double[matrix.Length];
+                for (int j = 0; j < matrix[i].Length; j++)//go through elements of the picked row
+                {
+                    normilizedLine[j] = matrix[i][j] / pivot;//floating point mantise error
+
+                }
+                //Gaussian Elimination
+                for (int m = i; m < matrix.Length; m++)//go through rest of rows below
+                {
+                    if (m == i) //do not self-eliminate
+                        continue;
+                    double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
+                    for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
+                    {
+                        matrix[m][n] -= normilizedLine[n] * coeficient;
+                    }
+                }
+            }
+            return matrix;
         }
         public Dictionary<int,double> Solve()
         {
@@ -98,7 +157,7 @@ namespace SoLE_Gauss
             double lastVariableCoeficient = matrix[matrix.Length - 1][matrix[0].Length - 2];//-2 because -1 is last element, and we want last variable coeficient which is pre last element
             double lastVariableRHS = matrix[matrix.Length - 1][matrix[0].Length - 1];
             double lastVariableSolution = lastVariableRHS / lastVariableCoeficient;
-            lastVariableSolution = Math.Round(lastVariableSolution, 5, MidpointRounding.ToEven);// fight floating-point errors 
+            lastVariableSolution = Math.Round(lastVariableSolution, marginOfTolerance, MidpointRounding.ToEven);// fight floating-point errors 
             res.Add(matrix.Length - 1, lastVariableSolution);
             for (int i = matrix.Length - 2; i > -1; i--) //-2 to skip the last row, as we already solved it
             {//shifting through rows solving LE
@@ -110,7 +169,7 @@ namespace SoLE_Gauss
                 }
                 double nextVarCoeficient = matrix[i][i];
                 double nextVarSolution = nextRHS / nextVarCoeficient;
-                nextVarSolution = Math.Round(nextVarSolution, 5, MidpointRounding.ToEven); // fight floating-point errors 
+                nextVarSolution = Math.Round(nextVarSolution, marginOfTolerance, MidpointRounding.ToEven); // fight floating-point errors 
                 res.Add(i, nextVarSolution);
 
             }
@@ -126,26 +185,31 @@ namespace SoLE_Gauss
         }
         public bool CheckSolutionQuick(Dictionary<int, double> sol)
         {
-            double rhs = sole[0][sole.Length];
+            double rhs = soleOriginal[0][sole.Length];
             double sum = 0;
-            for (int i = 0; i < sole[0].Length-1; i++)
+            for (int i = 0; i < soleOriginal[0].Length-1; i++)
             {
-                sum += sole[0][i] * sol[i];
+                sum += soleOriginal[0][i] * sol[i];
             }
             return sum == rhs;
         }
         public bool CheckSolution(Dictionary<int, double> sol)
         {
-            foreach (double[] line in sole)
+            foreach (double[] line in soleOriginal)
             {
-                double rhs = line[sole.Length];
+                double rhs = line[soleOriginal.Length];
                 double sum = 0;
-                for (int i = 0; i < sole[0].Length - 1; i++)
+                for (int i = 0; i < soleOriginal[0].Length - 1; i++)
                 {
+                    sol[i] = Math.Round(sol[i], marginOfTolerance, MidpointRounding.ToEven);
                     sum += line[i] * sol[i];
                 }
+                sum = Math.Round(sum, marginOfTolerance, MidpointRounding.ToEven);
                 if (sum != rhs)
+                {
+                    Console.WriteLine($"{sum} != {rhs};");
                     return false;
+                }
             }
             return true;
         }

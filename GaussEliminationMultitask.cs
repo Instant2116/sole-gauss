@@ -11,14 +11,17 @@ namespace SoLE_Gauss
     {
 
         double[][] sole;//system of linear equations
+        double[][] soleOriginal;
         Dictionary<int, double> solution;
         bool singularityFlag;
         public int Threads { get; set; }
+        static int marginOfTolerance = 8;
 
         public GaussEliminationMultitask(double[][] matrix, int threads)
         {
+            soleOriginal = Matrix.Copy(matrix);
             singularityFlag = false;
-            this.sole = matrix;
+            this.sole = Matrix.Copy(matrix); ;
             solution = new Dictionary<int, double>();
             Threads = threads;
         }
@@ -30,7 +33,6 @@ namespace SoLE_Gauss
         public double[][] Eliminate(double[][] matrix)//regular elimination
         {
             //Pivot Selection
-
             for (int i = 0; i < matrix.Length; i++)
             {
                 double pivot;
@@ -89,8 +91,7 @@ namespace SoLE_Gauss
             //correct RHS from  floating-point errors
             for (int i = 0; i < matrix.Length; i++)
             {
-                matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], 5, MidpointRounding.ToEven);
-                //matrix[i][j] = Math.Round(matrix[i][j], 5, MidpointRounding.ToEven);// fight 
+                matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], marginOfTolerance, MidpointRounding.ToEven);
             }
             return matrix;
         }
@@ -108,7 +109,7 @@ namespace SoLE_Gauss
             double lastVariableCoeficient = matrix[matrix.Length - 1][matrix[0].Length - 2];//-2 because -1 is last element, and we want last variable coeficient which is pre last element
             double lastVariableRHS = matrix[matrix.Length - 1][matrix[0].Length - 1];
             double lastVariableSolution = lastVariableRHS / lastVariableCoeficient;
-            lastVariableSolution = Math.Round(lastVariableSolution, 5, MidpointRounding.ToEven);// fight floating-point errors 
+            lastVariableSolution = Math.Round(lastVariableSolution, marginOfTolerance, MidpointRounding.ToEven);// fight floating-point errors 
             res.Add(matrix.Length - 1, lastVariableSolution);
             for (int i = matrix.Length - 2; i > -1; i--) //-2 to skip the last row, as we already solved it
             {//shifting through rows solving LE
@@ -120,7 +121,7 @@ namespace SoLE_Gauss
                 }
                 double nextVarCoeficient = matrix[i][i];
                 double nextVarSolution = nextRHS / nextVarCoeficient;
-                nextVarSolution = Math.Round(nextVarSolution, 5, MidpointRounding.ToEven); // fight floating-point errors 
+                nextVarSolution = Math.Round(nextVarSolution, marginOfTolerance, MidpointRounding.ToEven); // fight floating-point errors 
                 res.Add(i, nextVarSolution);
 
             }
@@ -154,16 +155,21 @@ namespace SoLE_Gauss
         }
         public bool CheckSolution(Dictionary<int, double> sol)
         {
-            foreach (double[] line in sole)
+            foreach (double[] line in soleOriginal)
             {
-                double rhs = line[sole.Length];
+                double rhs = line[soleOriginal.Length];
                 double sum = 0;
-                for (int i = 0; i < sole[0].Length - 1; i++)
+                for (int i = 0; i < soleOriginal[0].Length - 1; i++)
                 {
+                    sol[i] = Math.Round(sol[i], marginOfTolerance, MidpointRounding.ToEven);
                     sum += line[i] * sol[i];
                 }
+                sum = Math.Round(sum, marginOfTolerance, MidpointRounding.ToEven);
                 if (sum != rhs)
+                {
+                    Console.WriteLine($"{sum} != {rhs};");
                     return false;
+                }
             }
             return true;
         }

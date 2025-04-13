@@ -12,17 +12,20 @@ namespace SoLE_Gauss
     internal class SoLE // System of Linear Equations
     {
         public HashSet<string> variables { get; }
-        List<Dictionary<string, double>> coefficients{ get; }//List of coefficients 
-        List<double> rhs; //right-hand side aka constants on the right side of '='
-        Dictionary<string, double> solution;
+        List<Dictionary<string, double>> coefficientsNamed { get; }//List of coefficients 
+        Dictionary<string, double> solutionNamed;
         List<string> rawSoLE;
+        List<double[]> lhs; //left-hand side 
+        List<double> rhs; //right-hand side 
+        Dictionary<int, double> solutionIndexed;// index - coefficient
         string path;
         public SoLE(string path)
         {
             this.path = path;
             this.variables = new HashSet<string>();
-            this.solution = new Dictionary<string, double>();
-            this.coefficients = new List<Dictionary<string, double>>();
+            this.solutionNamed = new Dictionary<string, double>();
+            this.coefficientsNamed = new List<Dictionary<string, double>>();
+            this.lhs = new List<double[]>();
             this.rhs = new List<double>();
             rawSoLE = ReadSoLE(path);
             ParseData();
@@ -30,9 +33,9 @@ namespace SoLE_Gauss
         }
         public void show()
         {
-            for (int i = 0; i < coefficients.Count; i++)
+            for (int i = 0; i < coefficientsNamed.Count; i++)
             {
-                var a1 = coefficients[i];
+                var a1 = coefficientsNamed[i];
                 string le = "";
                 foreach (var a2 in a1)
                 {
@@ -56,17 +59,17 @@ namespace SoLE_Gauss
                 Console.WriteLine(le + "=" + rhs[i]);
             }
         }
-        
+
         public double[][] GetMatrix()
         {
-            double[][] res = new double[coefficients.Count][];//coefficients.Count
-            for (int i = 0; i <coefficients.Count;i++)
+            double[][] res = new double[coefficientsNamed.Count][];//coefficients.Count
+            for (int i = 0; i < coefficientsNamed.Count; i++)
             {
-                var d = coefficients[i];
+                var d = coefficientsNamed[i];
                 List<double> line = new List<double>();
                 foreach (var v in variables)
                 {
-                    if(d.ContainsKey(v))
+                    if (d.ContainsKey(v))
                         line.Add(d[v]);
                     else//if line does not contain variable, the variable must be 0, like 0*x does not show up in regular equetions
                         line.Add(0);
@@ -121,7 +124,7 @@ namespace SoLE_Gauss
                     variables.Add(a.Key);
                     values[a.Key] = a.Value;
                 }
-                coefficients.Add(values);
+                coefficientsNamed.Add(values);
                 rhs.Add(Double.Parse(equetionParts[1]));
             }
         }
@@ -275,74 +278,101 @@ namespace SoLE_Gauss
             public double value;
             public string variable;
         }
-        public static (int[][] A, double[] b) GenerateSolvableSystem(int n)
+        public static (double[][] A, double[] rhs, double[] solution) GenerateSolvableSystem(int n, int maxValue = 10)
         {
-            
             Random rand = new Random();
-            int[][] A = new int[n][];
+            double[][] A = new double[n][];
             for (int i = 0; i < n; i++)
             {
-                A[i] = new int[n];
+                A[i] = new double[n];
                 for (int j = 0; j < n; j++)
                 {
-                    A[i][j] = rand.Next(1,10); 
+                    int temp = rand.Next(1, maxValue);
+                    temp *= rand.Next(2) == 0 ? -1 : 1;
+                    A[i][j] = temp;
                 }
             }
+            int attempt = 0;
             //matrix must have a determinant
             while (Determinant(A) == 0)
             {
+                if (attempt > 100)
+                    Console.WriteLine("attempts to regenerate matrix run out");
                 // Regenerate matrix A until it is non-singular (det != 0)
                 for (int i = 0; i < n; i++)
                 {
                     for (int j = 0; j < n; j++)
                     {
-                        A[i][j] = rand.Next(1, 100);
+                        int temp = rand.Next(1, maxValue);
+                        temp *= rand.Next(2) == 0 ? -1 : 1;
+                        A[i][j] = temp;
                     }
                 }
+                attempt++;
             }
-
             //Generate the right-hand side
-            double[] x = new double[n];
+            double[] solution = new double[n];
             for (int i = 0; i < n; i++)
             {
-                x[i] = rand.Next(1,100);  // Random solution values, no double, because mantisa overflow suffering
+                int temp = rand.Next(1, maxValue);
+                temp *= rand.Next(2) == 0 ? -1 : 1;
+                solution[i] = temp;  // Random solution values, no double, because of mantisa overflow suffering
             }
 
-            double[] b = new double[n];
+            double[] rhs = new double[n];
             for (int i = 0; i < n; i++)
             {
-                b[i] = 0;
+                rhs[i] = 0;
                 for (int j = 0; j < n; j++)
                 {
-                    b[i] += A[i][j] * x[j];
+                    rhs[i] += A[i][j] * solution[j];
                 }
             }
-            return (A, b);
+            return (A, rhs, solution);
         }
-        public static int[][] getSubMatrixDeterminant(int[][] A)
+        private static double[][] getSubMatrixDeterminant(double[][] matrix, int rowToRemove, int colToRemove)
         {
-            int[][] B = new int[A.Length - 1][];
-            for (int i = 0; i < B.Length; i++)
+            int size = matrix.GetLength(0);
+            double[][] subMatrix = new double[size - 1][];
+            for (int i = 0; i < subMatrix.Length; i++)
             {
-                B[i] = new int[A[i].Length - 1];
-                Array.Copy(A[i + 1], 1, B[i], 0, B.Length);
+                subMatrix[i] = new double[size - 1];
             }
-            return B;
-        }
-
-        public static double Determinant(int[][] matrix)
-        {
-            int n = matrix.Length;
-            if (n == 1)
-                return matrix[0][0];
-
-            double det = 0;
-            for (int j = 0; j < n; j++)
+            int subRow = 0;
+            for (int i = 0; i < size; i++)
             {
-                int[][] subMatrix = getSubMatrixDeterminant(matrix);//getSubMatrix(matrix, 0, j);
-                det += (j % 2 == 0 ? 1 : -1) * matrix[0][j] * Determinant(subMatrix);
+                if (i == rowToRemove) continue;
+                int subCol = 0;
+                for (int j = 0; j < size; j++)
+                {
+                    if (j == colToRemove) continue;
+                    subMatrix[subRow][subCol] = matrix[i][j];
+                    subCol++;
+                }
+                subRow++;
+            }
+            return subMatrix;
+        }
+        public static double Determinant(double[][] matrix)
+        {
+            var result = GaussElimination.EliminatePartial(matrix);
+            double det = result[0][0];
+            for (int i = 1; i < result.Length; i++)
+            {
+                det *= result[i][i];
             }
             return det;
+        }
+        public double[] Generate(int n, int maxValue)
+        {
+            var result = GenerateSolvableSystem(n, maxValue);
+            lhs = result.A.ToList<double[]>();
+            rhs = new List<double>(result.rhs);
+            List<double> solutionList = result.solution.ToList();
+            solutionIndexed = solutionList
+                .Select((value, index) => new { Key = index, Value = value })
+                .ToDictionary(item => item.Key, item => item.Value);
+            return result.solution;
         }
     }
 }

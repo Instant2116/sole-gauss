@@ -364,3 +364,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /Resources.Designer.cs
 /Resources.resx
+/data/duplicates
+/data

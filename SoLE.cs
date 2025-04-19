@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Drawing;
 
 namespace SoLE_Gauss
 {
@@ -278,8 +279,9 @@ namespace SoLE_Gauss
             public double value;
             public string variable;
         }
-        public static (double[][] A, double[] rhs, double[] solution) GenerateSolvableSystem(int n, int maxValue = 10)
+        public static (double[][] lhs, double[] rhs, double[] solution) GenerateSolvableSystem(int n, int maxValue = 10)
         {
+
             Random rand = new Random();
             double[][] A = new double[n][];
             for (int i = 0; i < n; i++)
@@ -296,8 +298,13 @@ namespace SoLE_Gauss
             //matrix must have a determinant
             while (Determinant(A) == 0)
             {
+                attempt++;
+                Console.WriteLine("\tRegenerating new matrix");
                 if (attempt > 100)
-                    Console.WriteLine("attempts to regenerate matrix run out");
+                {
+                    Console.WriteLine("Attempts to regenerate matrix have run out!");
+                    break;
+                }
                 // Regenerate matrix A until it is non-singular (det != 0)
                 for (int i = 0; i < n; i++)
                 {
@@ -308,7 +315,6 @@ namespace SoLE_Gauss
                         A[i][j] = temp;
                     }
                 }
-                attempt++;
             }
             //Generate the right-hand side
             double[] solution = new double[n];
@@ -330,6 +336,23 @@ namespace SoLE_Gauss
             }
             return (A, rhs, solution);
         }
+        public static double[][] GenerateSolvableMatrix(int size, int maxValue = 10)
+        {
+            Console.Write("Generating system: ");
+            var sole = SoLE.GenerateSolvableSystem(size);
+            Console.WriteLine("done;");
+            double[][] A1 = sole.lhs;
+            double[] b = sole.rhs;
+            double[][] matrix = new double[A1.Length][];
+            for (int i = 0; i < matrix.Length; i++)
+            {
+                matrix[i] = A1[i];
+                Array.Resize(ref matrix[i], matrix[i].Length + 1);
+                matrix[i][matrix[i].Length - 1] = b[i];
+            }
+            return matrix;
+        }
+
         private static double[][] getSubMatrixDeterminant(double[][] matrix, int rowToRemove, int colToRemove)
         {
             int size = matrix.GetLength(0);
@@ -356,6 +379,8 @@ namespace SoLE_Gauss
         public static double Determinant(double[][] matrix)
         {
             var result = GaussElimination.EliminatePartial(matrix);
+            if (result == null)
+                return 0;
             double det = result[0][0];
             for (int i = 1; i < result.Length; i++)
             {
@@ -363,16 +388,15 @@ namespace SoLE_Gauss
             }
             return det;
         }
-        public double[] Generate(int n, int maxValue)
+        public void Generate(int n, int maxValue)
         {
             var result = GenerateSolvableSystem(n, maxValue);
-            lhs = result.A.ToList<double[]>();
+            lhs = result.lhs.ToList<double[]>();
             rhs = new List<double>(result.rhs);
             List<double> solutionList = result.solution.ToList();
             solutionIndexed = solutionList
                 .Select((value, index) => new { Key = index, Value = value })
                 .ToDictionary(item => item.Key, item => item.Value);
-            return result.solution;
         }
     }
 }

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
+using System.Threading;
 
 namespace SoLE_Gauss
 {
@@ -11,27 +13,26 @@ namespace SoLE_Gauss
         double[][] sole;//system of linear equations
         double[][] soleOriginal;
         Dictionary<int, double> solution { get; set; }
-        public bool singularityFlag { get; private set;}
+        public bool singularityFlag { get; private set; }
         static int marginOfTolerance = 8; //the number of digits after dot to account the calculation error from mantisa overflow - i hate it.
         public GaussElimination(double[][] matrix)
         {
-            this.sole = Matrix.Copy(matrix); 
+            this.sole = Matrix.Copy(matrix);
             soleOriginal = Matrix.Copy(matrix);
             this.solution = new Dictionary<int, double>();
             singularityFlag = false;
         }
-        public double[][] Eliminate()
+        public (double[][] matrix, Stopwatch stopwatchInner) Eliminate()
         {
-            var r = Eliminate(this.sole);
-            this.singularityFlag = r.Item2;
-            return r.Item1;
+            Stopwatch stopwatchI = new Stopwatch();
+            return Eliminate(this.sole, stopwatchI);
         }
-        public static (double[][] matrix,bool singularityFlag) Eliminate(double[][] matrix)//regular elimination to identity matrix
+        public static (double[][] matrix, Stopwatch stopwatchInner) Eliminate(double[][] matrix, Stopwatch stopwatchInner)//regular elimination to identity matrix
         {
-            bool singularityFlag = false;
+            //bool singularityFlag = false;
             //Pivot Selection
             for (int i = 0; i < matrix.Length; i++) //go through rows; 
-            {//- 1 because the last variable does not need elimination
+            {
                 double pivot;
                 //pick pivot
                 if (matrix[i][i] != 0)
@@ -43,31 +44,31 @@ namespace SoLE_Gauss
                     //swap
                     if (matrix[i][i] == 0)
                     {
-                        singularityFlag = true;
+                        //singularityFlag = true;
                         for (int j = i; j < matrix.Length - 1; j++)
                         {
                             if (matrix[i][j] != 0)
                             {
-                                singularityFlag = false;
+                                //singularityFlag = false;
                                 swapRows(matrix, i, j);
                                 break;
                             }
-                        }
+                        }/*
                         if (singularityFlag)
                         {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
                             Console.WriteLine("Panic");
                             return (matrix, singularityFlag);
-                        }
+                        }*/
                     }
                     pivot = matrix[i][i];
                 }
-
                 //Normalization 
                 for (int j = 0; j < matrix[i].Length; j++)//go through elements of the picked row
                 {
                     matrix[i][j] /= pivot;//floating point mantise error
 
-               }
+                }
+                stopwatchInner.Start();
                 //Gaussian Elimination
                 for (int m = 0; m < matrix.Length; m++)//go through rest of rows
                 {
@@ -79,14 +80,14 @@ namespace SoLE_Gauss
                         matrix[m][n] -= matrix[i][n] * coeficient;
                     }
                 }
+                stopwatchInner.Stop();
             }
             //correct RHS from  floating-point errors
-            
-            for(int i = 0; i < matrix.Length; i++)
+            for (int i = 0; i < matrix.Length; i++)
             {
-                matrix[i][matrix[i].Length-1] = Math.Round(matrix[i][matrix[i].Length-1], marginOfTolerance, MidpointRounding.ToEven);
+                matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], marginOfTolerance, MidpointRounding.ToEven);
             }
-            return (matrix, singularityFlag);
+            return (matrix, stopwatchInner);
         }
         public static double[][] EliminatePartial(double[][] matrixOrigin)//partial elimination, creates echelon form matrix (also called triangular form) 
         {
@@ -117,7 +118,7 @@ namespace SoLE_Gauss
                         if (singularityFlag)
                         {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
                             Console.WriteLine("Panic");
-                            return matrix;
+                            return null;
                         }
                     }
                     pivot = matrix[i][i];
@@ -131,20 +132,23 @@ namespace SoLE_Gauss
 
                 }
                 //Gaussian Elimination
-                for (int m = i; m < matrix.Length; m++)//go through rest of rows below
-                {
-                    if (m == i) //do not self-eliminate
-                        continue;
-                    double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
-                    for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
+                //for (int m = i; m < matrix.Length; m++)//go through rest of rows below
+                Parallel.For(0, matrix.Length, new ParallelOptions { MaxDegreeOfParallelism = 10 },
+                    m =>
+
                     {
-                        matrix[m][n] -= normilizedLine[n] * coeficient;
-                    }
-                }
+                        if (m != i) //do not self-eliminate
+                        {
+                            double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
+                            for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
+                                matrix[m][n] -= normilizedLine[n] * coeficient;
+                        }
+
+                    });
             }
             return matrix;
         }
-        public Dictionary<int,double> Solve()
+        public Dictionary<int, double> Solve()
         {
             solution = Solve(this.sole);
             return solution;
@@ -187,7 +191,7 @@ namespace SoLE_Gauss
         {
             double rhs = soleOriginal[0][sole.Length];
             double sum = 0;
-            for (int i = 0; i < soleOriginal[0].Length-1; i++)
+            for (int i = 0; i < soleOriginal[0].Length - 1; i++)
             {
                 sum += soleOriginal[0][i] * sol[i];
             }
@@ -204,7 +208,7 @@ namespace SoLE_Gauss
                     sol[i] = Math.Round(sol[i], marginOfTolerance, MidpointRounding.ToEven);
                     sum += line[i] * sol[i];
                 }
-                sum = Math.Round(sum, marginOfTolerance, MidpointRounding.ToEven);
+                sum = Math.Round(sum, marginOfTolerance - 3, MidpointRounding.ToEven);
                 if (sum != rhs)
                 {
                     Console.WriteLine($"{sum} != {rhs};");

@@ -5,71 +5,51 @@ using System.Text;
 using System.Globalization;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
+using Microsoft.Win32.SafeHandles;
+using System.Drawing;
+using System.Threading;
 
 
 namespace SoLE_Gauss
 {
     class Program
     {
-
-        static string path = "MidSoLE2.txt";
+        static string fileName = "GaussMultitask";
+        static string fileType = ".csv";
         public static void Main()
         {
-            //this is for files
-            /*
-            string rPath = Resources.Path + path;
-             SoLE les = new SoLE(rPath);
-             double[][] A = les.GetMatrix();
-            double[][] B = Matrix.Copy(A);
-            double[][] x = //new double[] { 1, 2, 3 };
-            {
-                new double[] {2, 1, -2},
-                new double[] {1, -1, -1},
-                new double[] {1, 1, 3}
-            };
-            */
-
+            
+            string fullFileName, relativePath;
+            List<Report> reportList = new List<Report>();
             Stopwatch stopwatch = new Stopwatch();
-            int n = 5000;
-            var sole = SoLE.GenerateSolvableSystem(n);
-            double[][] A1 = sole.A;
-            double[] b = sole.rhs;
-            double[][] A = new double[A1.Length][];
-            for (int i = 0; i < A.Length; i++ )
+            for (int size = 4500; size <= 5000; size += 500)
             {
-                A[i] = A1[i];
-                Array.Resize(ref A[i], A[i].Length+1);
-                A[i][A[i].Length-1] = b[i];
+                for (int threads = 2; threads <= 12; threads += 2)
+                {
+                    for (int i = 0; i < 10; i++)
+                    {
+                        Console.WriteLine($"size:{size}; threads:{threads}; iteration: {i}");
+                        var A = SoLE.GenerateSolvableMatrix(size);
+                        Console.Write("gaussEliminationMultitask: ");
+                        GaussEliminationMultitask gaussEliminationMultitask = new GaussEliminationMultitask(A, threads);
+                        stopwatch.Restart();
+                        gaussEliminationMultitask.Eliminate();
+                        stopwatch.Stop();
+                        Console.WriteLine("done;");
+                        TimeSpan timeGaussMultitask = stopwatch.Elapsed;
+                        reportList.Add(new Report(size, threads, timeGaussMultitask));
+                        Console.WriteLine();
+                    }
+                }
+
+                fullFileName = fileName + "_" + size + fileType;
+                relativePath = Resources.Path + fullFileName;
+                Logger.WriteCsv(relativePath, reportList);
+                Console.WriteLine("Report added;");
+                Console.WriteLine();
+                reportList.Clear();
             }
-            //Matrix.printMatrix(A);
-            Console.Write("gaussEliminationMultitask: ");
-            GaussEliminationMultitask gaussEliminationMultitask = new GaussEliminationMultitask(A, 12);
-            stopwatch.Start();
-            gaussEliminationMultitask.Eliminate();
-            stopwatch.Stop();
-            Console.WriteLine("stopwatch: "+stopwatch.ElapsedMilliseconds);
-            gaussEliminationMultitask.Solve();
-            Console.WriteLine("Solve: done");
-            Console.WriteLine("CheckSolution; " + gaussEliminationMultitask.CheckSolution()); 
-
-            Console.Write("gaussElimination: ");
-            GaussElimination gaussElimination = new GaussElimination(A);
-            stopwatch.Restart();
-            gaussElimination.Eliminate();
-            stopwatch.Stop();
-            Console.WriteLine("stopwatch: " + stopwatch.ElapsedMilliseconds);
-            gaussElimination.Solve();
-            Console.WriteLine("Solve:done");
-            Console.WriteLine("CheckSolution; "+ gaussElimination.CheckSolution());
-
-
-
-
-
-
-
-
-
         }
     }
 }

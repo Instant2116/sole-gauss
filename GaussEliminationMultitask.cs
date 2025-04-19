@@ -1,42 +1,53 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SoLE_Gauss
 {
     internal class GaussEliminationMultitask
     {
-
-        double[][] sole;//system of linear equations
+        /// <summary>
+        /// in Elemination process the elemination itself is the most time consuming process (~97%)
+        /// Paralell implementation is better than asyncrhonus, because of thread usage
+        /// Paralell implementation is better than multitasking is better because tasks queued with low priority flag as background tasks
+        /// Parallel.For uses greaddy tactic to let other threads steal work from busy threads, which optimizes the load, while segmentation of work for threads perform worse
+        /// </summary>
+        double[][] matrix;//system of linear equations
         double[][] soleOriginal;
         Dictionary<int, double> solution;
-        bool singularityFlag;
-        public int Threads { get; set; }
+        //bool singularityFlag;
+        public int Threads { get; private set; }
+        public int Delimiter { get; private set; }
+        public int SegmentSize { get; private set; }
         static int marginOfTolerance = 8;
 
         public GaussEliminationMultitask(double[][] matrix, int threads)
         {
+            //singularityFlag = false;
             soleOriginal = Matrix.Copy(matrix);
-            singularityFlag = false;
-            this.sole = Matrix.Copy(matrix); ;
+            this.matrix = Matrix.Copy(matrix); ;
             solution = new Dictionary<int, double>();
             Threads = threads;
+            //Segmentation
+            Delimiter = Math.Min(threads, soleOriginal.Length);
+            Delimiter = getDivider(Delimiter, soleOriginal.Length); // even split, like matrix size 10, and 9 proc, so ...
+            this.SegmentSize = (int)(soleOriginal.Length / Delimiter);
         }
         public double[][] Eliminate()
         {
-            return Eliminate(this.sole);
+            return Eliminate(this.matrix, this.Threads);
         }
-
-        public double[][] Eliminate(double[][] matrix)//regular elimination
-        {
+        public double[][] EliminateSegmented()
+        {//perform worse, than static method, because Paralell.For uses greaddy strategy, which can not be performed when matrix is already splitted in segments
             //Pivot Selection
             for (int i = 0; i < matrix.Length; i++)
             {
                 double pivot;
-                //- 1 because the last variable does not need elimination
                 //pick pivot
                 if (matrix[i][i] != 0)
                 {//all good
@@ -48,7 +59,6 @@ namespace SoLE_Gauss
                     if (matrix[i][i] == 0)
                     {
                         //matrix is always solvable (c)Stetsenko
-                        bool singularityFlag = true; 
                         for (int j = i; j < matrix.Length - 1; j++)
                         {
                             if (matrix[i][j] != 0)
@@ -58,35 +68,107 @@ namespace SoLE_Gauss
                                 break;
                             }
                         }
-                        if (singularityFlag)
-                        {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
-                            this.singularityFlag = true;
-                            Console.WriteLine("Panic - singularity");
-                            return matrix;
-                        }
                     }
                     pivot = matrix[i][i];
                 }
                 //technicly can lock on matrix[i] or matrix[m],
                 //but they aquire access to pointer of a subarray and never intervene each other
                 //Normalization 
+                for (int j = 0; j < matrix[i].Length; j++)//go through elements of the picked row
+                {
+                    matrix[i][j] /= pivot;//floating point mantise error
+
+                }
+                //Gaussian Elimination
+                // Parallel.For use greaddy strategy, where free threads steal work from busy threads
+                //because of this splitting matrix into segments for each thread to process will perform worse
+                Parallel.For(0, Delimiter, new ParallelOptions { MaxDegreeOfParallelism = Threads },
+                    m =>
+                    {
+                        for (int c = 0; c < SegmentSize; c++)
+                        {
+                            int s = m * SegmentSize + c;//currently processed index of a row
+                            if (s != i) //do not self-eliminate
+                            {
+                                double coeficient = matrix[m * SegmentSize + c][i]; // pivot;
+                                for (int n = 0; n < matrix[m * SegmentSize + c].Length; n++) //go through elements of other rows
+                                    matrix[m * SegmentSize + c][n] -= matrix[i][n] * coeficient;
+                            }
+                        }
+                    });
+
+            }
+            //correct RHS from  floating-point errors
+            for (int i = 0; i < matrix.Length; i++)
+            {
+                matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], marginOfTolerance, MidpointRounding.ToEven);
+            }
+            return matrix;
+        }
+
+        public static double[][] Eliminate(double[][] matrix, int Threads)//regular elimination
+        {
+            //Pivot Selection
+            for (int i = 0; i < matrix.Length; i++)
+            {
+                double pivot;
+                //pick pivot
+                if (matrix[i][i] != 0)
+                {//all good
+                    pivot = matrix[i][i];
+                }
+                else
+                {//pivot is 0, need rows swapping 
+                    //swap
+                    if (matrix[i][i] == 0)
+                    {
+                        //matrix is always solvable (c)Stetsenko
+                        for (int j = i; j < matrix.Length - 1; j++)
+                        {
+                            if (matrix[i][j] != 0)
+                            {
+                                //singularityFlag = false;
+                                swapRows(matrix, i, j);
+                                break;
+                            }
+                        }/*
+                        if (singularityFlag)
+                        {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
+                            this.singularityFlag = true;
+                            Console.WriteLine("Panic - singularity");
+                            return matrix;
+                        }*/
+                    }
+                    pivot = matrix[i][i];
+                }
+                //technicly can lock on matrix[i] or matrix[m],
+                //but they aquire access to pointer of a subarray and never intervene each other
+                //Normalization 
+                for (int j = 0; j < matrix[i].Length; j++)//go through elements of the picked row
+                {
+                    matrix[i][j] /= pivot;//floating point mantise error
+
+                }
+                /*
                 Parallel.For(0, matrix[i].Length, new ParallelOptions { MaxDegreeOfParallelism = this.Threads },
                     j =>//go through elements of the picked row
                 {
                     matrix[i][j] /= pivot;
                     //matrix[i][j] = Math.Round(matrix[i][j], 5, MidpointRounding.ToEven); // fight floating-point errors 
-                });
+                });*/
+
                 //Gaussian Elimination
-                Parallel.For(0, matrix.Length, new ParallelOptions { MaxDegreeOfParallelism = this.Threads },
+                Parallel.For(0, matrix.Length, new ParallelOptions { MaxDegreeOfParallelism = Threads },
                     m =>
-                {
-                    if (m != i) //do not self-eliminate
                     {
-                        double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
-                        for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
-                            matrix[m][n] -= matrix[i][n] * coeficient;
-                    }
-                });
+                        if (m != i) //do not self-eliminate
+                        {
+                            double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
+                            for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
+                                matrix[m][n] -= matrix[i][n] * coeficient;
+                        }
+                    });
+
             }
             //correct RHS from  floating-point errors
             for (int i = 0; i < matrix.Length; i++)
@@ -98,7 +180,7 @@ namespace SoLE_Gauss
 
         public Dictionary<int, double> Solve()
         {
-            solution = Solve(this.sole);
+            solution = Solve(this.matrix);
             return solution;
         }
         public Dictionary<int, double> Solve(double[][] matrix)
@@ -135,24 +217,12 @@ namespace SoLE_Gauss
             matrix[i2] = t;
             //return matrix;
         }
-        public bool CheckSolutionQuick()
-        {
-            return CheckSolutionQuick(this.solution);
-        }
+
         public bool CheckSolution()
         {
             return CheckSolution(this.solution);
         }
-        public bool CheckSolutionQuick(Dictionary<int, double> sol)
-        {
-            double rhs = sole[0][sole.Length];
-            double sum = 0;
-            for (int i = 0; i < sole[0].Length - 1; i++)
-            {
-                sum += sole[0][i] * sol[i];
-            }
-            return sum == rhs;
-        }
+
         public bool CheckSolution(Dictionary<int, double> sol)
         {
             foreach (double[] line in soleOriginal)
@@ -164,7 +234,7 @@ namespace SoLE_Gauss
                     sol[i] = Math.Round(sol[i], marginOfTolerance, MidpointRounding.ToEven);
                     sum += line[i] * sol[i];
                 }
-                sum = Math.Round(sum, marginOfTolerance, MidpointRounding.ToEven);
+                sum = Math.Round(sum, marginOfTolerance - 3, MidpointRounding.ToEven);
                 if (sum != rhs)
                 {
                     Console.WriteLine($"{sum} != {rhs};");
@@ -175,9 +245,9 @@ namespace SoLE_Gauss
         }
         public void showSoLE()
         {
-            for (int i = 0; i < sole.Length; i++)
+            for (int i = 0; i < matrix.Length; i++)
             {
-                Console.WriteLine("[" + String.Join(";", sole[i]) + "]");
+                Console.WriteLine("[" + String.Join(";", matrix[i]) + "]");
             }
         }
         public void showSolution()
@@ -187,5 +257,35 @@ namespace SoLE_Gauss
                 Console.WriteLine($"var: {i.Key};\tval: {i.Value}");
             }
         }
+        public static int getDivider(int threads, int size)
+        {//for equal load
+            if (threads <= size)
+            {
+                int delimiter = threads;
+                while (size % delimiter != 0)
+                {
+                    delimiter++;
+                }
+                return delimiter;
+            }
+            return size;
+        }
+
+        public List<double[][]> Segmentize(double[][] matrix, int segmentSize)
+        {
+            List<double[][]> result = new List<double[][]>();
+            for (int i = 0; i <= matrix.Length; i += segmentSize)
+            {
+                double[][] segment = new double[segmentSize][];
+                for (int j = 0; j < segmentSize; j++)
+                {
+                    segment[i][j] = matrix[i][j];
+                }
+            }
+
+
+            return result;
+        }
+
     }
 }

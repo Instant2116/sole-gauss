@@ -13,23 +13,19 @@ namespace SoLE_Gauss
         double[][] sole;//system of linear equations
         double[][] soleOriginal;
         Dictionary<int, double> solution { get; set; }
-        public bool singularityFlag { get; private set; }
         static int marginOfTolerance = 8; //the number of digits after dot to account the calculation error from mantisa overflow - i hate it.
         public GaussElimination(double[][] matrix)
         {
             this.sole = Matrix.Copy(matrix);
             soleOriginal = Matrix.Copy(matrix);
             this.solution = new Dictionary<int, double>();
-            singularityFlag = false;
         }
-        public (double[][] matrix, Stopwatch stopwatchInner) Eliminate()
+        public double[][] Eliminate()
         {
-            Stopwatch stopwatchI = new Stopwatch();
-            return Eliminate(this.sole, stopwatchI);
+            return Eliminate(this.sole);
         }
-        public static (double[][] matrix, Stopwatch stopwatchInner) Eliminate(double[][] matrix, Stopwatch stopwatchInner)//regular elimination to identity matrix
+        public static double[][] Eliminate(double[][] matrix)//regular elimination to identity matrix
         {
-            //bool singularityFlag = false;
             //Pivot Selection
             for (int i = 0; i < matrix.Length; i++) //go through rows; 
             {
@@ -53,12 +49,7 @@ namespace SoLE_Gauss
                                 swapRows(matrix, i, j);
                                 break;
                             }
-                        }/*
-                        if (singularityFlag)
-                        {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
-                            Console.WriteLine("Panic");
-                            return (matrix, singularityFlag);
-                        }*/
+                        }
                     }
                     pivot = matrix[i][i];
                 }
@@ -68,7 +59,6 @@ namespace SoLE_Gauss
                     matrix[i][j] /= pivot;//floating point mantise error
 
                 }
-                stopwatchInner.Start();
                 //Gaussian Elimination
                 for (int m = 0; m < matrix.Length; m++)//go through rest of rows
                 {
@@ -80,14 +70,13 @@ namespace SoLE_Gauss
                         matrix[m][n] -= matrix[i][n] * coeficient;
                     }
                 }
-                stopwatchInner.Stop();
             }
             //correct RHS from  floating-point errors
             for (int i = 0; i < matrix.Length; i++)
             {
                 matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], marginOfTolerance, MidpointRounding.ToEven);
             }
-            return (matrix, stopwatchInner);
+            return matrix;
         }
         public static double[][] EliminatePartial(double[][] matrixOrigin)//partial elimination, creates echelon form matrix (also called triangular form) 
         {
@@ -117,7 +106,6 @@ namespace SoLE_Gauss
                         }
                         if (singularityFlag)
                         {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
-                            Console.WriteLine("Panic");
                             return null;
                         }
                     }
@@ -132,7 +120,6 @@ namespace SoLE_Gauss
 
                 }
                 //Gaussian Elimination
-                //for (int m = i; m < matrix.Length; m++)//go through rest of rows below
                 Parallel.For(0, matrix.Length, new ParallelOptions { MaxDegreeOfParallelism = 10 },
                     m =>
 

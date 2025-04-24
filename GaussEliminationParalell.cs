@@ -1,15 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace SoLE_Gauss
 {
-    internal class GaussEliminationMultitask
+    internal class GaussEliminationParalell
     {
         /// <summary>
         /// in Elemination process the elemination itself is the most time consuming process (~97%)
@@ -22,11 +20,11 @@ namespace SoLE_Gauss
         Dictionary<int, double> solution;
         //bool singularityFlag;
         public int Threads { get; private set; }
-        public int Delimiter { get; private set; }
+        public int Delimiter { get; set; }
         public int SegmentSize { get; private set; }
         static int marginOfTolerance = 8;
 
-        public GaussEliminationMultitask(double[][] matrix, int threads)
+        public GaussEliminationParalell(double[][] matrix, int threads)
         {
             //singularityFlag = false;
             soleOriginal = Matrix.Copy(matrix);
@@ -36,6 +34,7 @@ namespace SoLE_Gauss
             //Segmentation
             Delimiter = Math.Min(threads, soleOriginal.Length);
             Delimiter = getDivider(Delimiter, soleOriginal.Length); // even split, like matrix size 10, and 9 proc, so ...
+            Delimiter = matrix.Length /2;
             this.SegmentSize = (int)(soleOriginal.Length / Delimiter);
         }
         public double[][] Eliminate()
@@ -131,13 +130,7 @@ namespace SoLE_Gauss
                                 swapRows(matrix, i, j);
                                 break;
                             }
-                        }/*
-                        if (singularityFlag)
-                        {//actually need just to ignore variable and ajust answer to eqither system has free variable or it's singular 
-                            this.singularityFlag = true;
-                            Console.WriteLine("Panic - singularity");
-                            return matrix;
-                        }*/
+                        }
                     }
                     pivot = matrix[i][i];
                 }
@@ -149,14 +142,6 @@ namespace SoLE_Gauss
                     matrix[i][j] /= pivot;//floating point mantise error
 
                 }
-                /*
-                Parallel.For(0, matrix[i].Length, new ParallelOptions { MaxDegreeOfParallelism = this.Threads },
-                    j =>//go through elements of the picked row
-                {
-                    matrix[i][j] /= pivot;
-                    //matrix[i][j] = Math.Round(matrix[i][j], 5, MidpointRounding.ToEven); // fight floating-point errors 
-                });*/
-
                 //Gaussian Elimination
                 Parallel.For(0, matrix.Length, new ParallelOptions { MaxDegreeOfParallelism = Threads },
                     m =>

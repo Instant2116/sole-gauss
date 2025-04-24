@@ -352,30 +352,6 @@ namespace SoLE_Gauss
             }
             return matrix;
         }
-
-        private static double[][] getSubMatrixDeterminant(double[][] matrix, int rowToRemove, int colToRemove)
-        {
-            int size = matrix.GetLength(0);
-            double[][] subMatrix = new double[size - 1][];
-            for (int i = 0; i < subMatrix.Length; i++)
-            {
-                subMatrix[i] = new double[size - 1];
-            }
-            int subRow = 0;
-            for (int i = 0; i < size; i++)
-            {
-                if (i == rowToRemove) continue;
-                int subCol = 0;
-                for (int j = 0; j < size; j++)
-                {
-                    if (j == colToRemove) continue;
-                    subMatrix[subRow][subCol] = matrix[i][j];
-                    subCol++;
-                }
-                subRow++;
-            }
-            return subMatrix;
-        }
         public static double Determinant(double[][] matrix)
         {
             var result = GaussElimination.EliminatePartial(matrix);

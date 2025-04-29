@@ -34,15 +34,20 @@ namespace SoLE_Gauss
             //Segmentation
             Delimiter = Math.Min(threads, soleOriginal.Length);
             Delimiter = getDivider(Delimiter, soleOriginal.Length); // even split, like matrix size 10, and 9 proc, so ...
-            Delimiter = matrix.Length /2;
             this.SegmentSize = (int)(soleOriginal.Length / Delimiter);
         }
         public double[][] Eliminate()
         {
             return Eliminate(this.matrix, this.Threads);
         }
-        public double[][] EliminateSegmented()
+        public double[][] EliminateSegmented(uint segmentationCoeficient = 1) // segmentationCoeficient: 1 => segments = threads number, 2 => segments x 2 = threads etc.
         {//perform worse, than static method, because Paralell.For uses greaddy strategy, which can not be performed when matrix is already splitted in segments
+            //local segmentation
+            int localSegmentSize;
+            if (segmentationCoeficient != 1)
+                localSegmentSize = (int) (soleOriginal.Length / getDivider(this.Threads * (int)segmentationCoeficient, soleOriginal.Length));
+            else
+                localSegmentSize = SegmentSize;
             //Pivot Selection
             for (int i = 0; i < matrix.Length; i++)
             {
@@ -105,7 +110,7 @@ namespace SoLE_Gauss
             return matrix;
         }
 
-        public static double[][] Eliminate(double[][] matrix, int Threads)//regular elimination
+        public static double[][] Eliminate(double[][] matrix, int Threads)//paralell elimination
         {
             //Pivot Selection
             for (int i = 0; i < matrix.Length; i++)

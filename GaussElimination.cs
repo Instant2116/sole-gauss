@@ -13,7 +13,8 @@ namespace SoLE_Gauss
         double[][] sole;//system of linear equations
         double[][] soleOriginal;
         Dictionary<int, double> solution { get; set; }
-        static int marginOfTolerance = 8; //the number of digits after dot to account the calculation error from mantisa overflow - i hate it.
+        //the number of digits after dot to account the calculation error from mantisa overflow - i hate it.
+        static int marginOfTolerance = 8; 
         public GaussElimination(double[][] matrix)
         {
             this.sole = Matrix.Copy(matrix);
@@ -30,7 +31,7 @@ namespace SoLE_Gauss
             for (int i = 0; i < matrix.Length; i++) //go through rows; 
             {
                 double pivot;
-                //pick pivot
+                //Pick pivot
                 if (matrix[i][i] != 0)
                 {//all good
                     pivot = matrix[i][i];
@@ -40,12 +41,10 @@ namespace SoLE_Gauss
                     //swap
                     if (matrix[i][i] == 0)
                     {
-                        //singularityFlag = true;
                         for (int j = i; j < matrix.Length - 1; j++)
                         {
                             if (matrix[i][j] != 0)
                             {
-                                //singularityFlag = false;
                                 swapRows(matrix, i, j);
                                 break;
                             }
@@ -56,7 +55,7 @@ namespace SoLE_Gauss
                 //Normalization 
                 for (int j = 0; j < matrix[i].Length; j++)//go through elements of the picked row
                 {
-                    matrix[i][j] /= pivot;//floating point mantise error
+                    matrix[i][j] /= pivot;//floating point mantise error could occur
 
                 }
                 //Gaussian Elimination
@@ -195,7 +194,7 @@ namespace SoLE_Gauss
                     sol[i] = Math.Round(sol[i], marginOfTolerance, MidpointRounding.ToEven);
                     sum += line[i] * sol[i];
                 }
-                sum = Math.Round(sum, marginOfTolerance - 3, MidpointRounding.ToEven);
+                sum = Math.Round(sum, marginOfTolerance, MidpointRounding.ToEven);
                 if (sum != rhs)
                 {
                     Console.WriteLine($"{sum} != {rhs};");

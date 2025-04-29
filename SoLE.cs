@@ -281,7 +281,6 @@ namespace SoLE_Gauss
         }
         public static (double[][] lhs, double[] rhs, double[] solution) GenerateSolvableSystem(int n, int maxValue = 10)
         {
-
             Random rand = new Random();
             double[][] A = new double[n][];
             for (int i = 0; i < n; i++)
@@ -324,7 +323,6 @@ namespace SoLE_Gauss
                 temp *= rand.Next(2) == 0 ? -1 : 1;
                 solution[i] = temp;  // Random solution values, no double, because of mantisa overflow suffering
             }
-
             double[] rhs = new double[n];
             for (int i = 0; i < n; i++)
             {

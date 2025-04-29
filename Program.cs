@@ -54,15 +54,6 @@ namespace SoLE_Gauss
                         Console.WriteLine($"size:{size}; threads:{threads}; iteration: {i}");
                         var A = SoLE.GenerateSolvableMatrix(size);
 
-                        Console.Write("gaussEliminationParalell: ");
-                        GaussEliminationParalell gaussEliminationParalell = new GaussEliminationParalell(A, threads);
-                        stopwatch.Restart();
-                        gaussEliminationParalell.Eliminate();
-                        stopwatch.Stop();
-                        Console.WriteLine("done;");
-                        TimeSpan timeGaussMultitask = stopwatch.Elapsed;
-                        reportList1.Add(new Report(size, threads, timeGaussMultitask));
-
                         Console.Write("gaussEliminationSequential: ");
                         GaussElimination gaussEliminationSequential = new GaussElimination(A);
                         stopwatch.Restart();
@@ -70,8 +61,18 @@ namespace SoLE_Gauss
                         stopwatch.Stop();
                         Console.WriteLine("done;");
                         TimeSpan gaussEliminationSequentialTime = stopwatch.Elapsed;
-                        reportList2.Add(new Report(size, threads, timeGaussMultitask));
-                        Console.WriteLine();
+                        reportList1.Add(new Report(size, threads, gaussEliminationSequentialTime));
+
+
+                        Console.Write("gaussEliminationParalell: ");
+                        GaussEliminationParalell gaussEliminationParalell = new GaussEliminationParalell(A, threads);
+                        stopwatch.Restart();
+                        gaussEliminationParalell.Eliminate();
+                        stopwatch.Stop();
+                        Console.WriteLine("done;");
+                        TimeSpan timeGaussParalellTime = stopwatch.Elapsed;
+                        reportList2.Add(new Report(size, threads, timeGaussParalellTime));
+
                         /*
                         for (int j = 1; j < 10; j++)
                         {
@@ -85,7 +86,7 @@ namespace SoLE_Gauss
                             reportList3.Add(new Report(size, threads, gaussEliminationSegmentedTime));
                             Console.WriteLine();
                         }*/
-
+                        Console.WriteLine();
                     }
                 }
                 string fullFileName1 = fileName1 + "_" + size + fileType;

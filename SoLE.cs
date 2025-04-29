@@ -334,10 +334,10 @@ namespace SoLE_Gauss
             }
             return (A, rhs, solution);
         }
-        public static double[][] GenerateSolvableMatrix(int size, int maxValue = 10)
+        public static double[][] GenerateSolvableMatrix(int size, int maxValue = 100)
         {
             Console.Write("Generating system: ");
-            var sole = SoLE.GenerateSolvableSystem(size);
+            var sole = SoLE.GenerateSolvableSystem(size, maxValue);
             Console.WriteLine("done;");
             double[][] A1 = sole.lhs;
             double[] b = sole.rhs;

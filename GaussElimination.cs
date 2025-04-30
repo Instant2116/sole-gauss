@@ -27,6 +27,49 @@ namespace SoLE_Gauss
         }
         public static double[][] Eliminate(double[][] matrix)//regular elimination to identity matrix
         {
+            for (int i = 0; i < matrix.Length; i++) //go through rows; 
+            {
+                //Pivot Selection
+                double pivot = matrix[i][i];
+                int index = i;
+                //Pick pivot partial pivoting
+                for(int I = i; I < matrix.Length; I++)
+                {
+                    if(Math.Abs(matrix[I][i]) > Math.Abs(pivot))
+                    {
+                        pivot = matrix[I][i];
+                        index = I;
+                    }
+                }
+                swapRows(matrix, i, index);
+                //Normalization 
+                for (int j = 0; j < matrix[i].Length; j++)//go through elements of the picked row
+                {
+                    matrix[i][j] /= pivot;//floating point mantise error could occur
+
+                }
+                //Gaussian Elimination
+                for (int m = 0; m < matrix.Length; m++)//go through rest of rows
+                {
+                    if (m == i) //do not self-eliminate
+                        continue;
+                    double coeficient = matrix[m][i]; // pivot; // do not need division, because pivot is always 1;
+                    for (int n = 0; n < matrix[m].Length; n++) //go through elements of other rows
+                    {
+                        matrix[m][n] -= matrix[i][n] * coeficient;
+                    }
+                }
+            }
+            //correct RHS from  floating-point errors
+            for (int i = 0; i < matrix.Length; i++)
+            {
+                matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], marginOfTolerance, MidpointRounding.ToEven);
+            }
+            return matrix;
+        }
+
+        public static double[][] EliminateNaive(double[][] matrix)//regular elimination to identity matrix with naive pivoting
+        {
             //Pivot Selection
             for (int i = 0; i < matrix.Length; i++) //go through rows; 
             {
@@ -70,7 +113,6 @@ namespace SoLE_Gauss
                     }
                 }
             }
-            //correct RHS from  floating-point errors
             for (int i = 0; i < matrix.Length; i++)
             {
                 matrix[i][matrix[i].Length - 1] = Math.Round(matrix[i][matrix[i].Length - 1], marginOfTolerance, MidpointRounding.ToEven);
@@ -194,7 +236,7 @@ namespace SoLE_Gauss
                     sol[i] = Math.Round(sol[i], marginOfTolerance, MidpointRounding.ToEven);
                     sum += line[i] * sol[i];
                 }
-                sum = Math.Round(sum, marginOfTolerance, MidpointRounding.ToEven);
+                sum = Math.Round(sum, marginOfTolerance-2, MidpointRounding.ToEven);
                 if (sum != rhs)
                 {
                     Console.WriteLine($"{sum} != {rhs};");

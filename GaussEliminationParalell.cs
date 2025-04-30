@@ -26,7 +26,6 @@ namespace SoLE_Gauss
 
         public GaussEliminationParalell(double[][] matrix, int threads)
         {
-            //singularityFlag = false;
             soleOriginal = Matrix.Copy(matrix);
             this.matrix = Matrix.Copy(matrix); ;
             solution = new Dictionary<int, double>();
@@ -48,33 +47,23 @@ namespace SoLE_Gauss
                 localSegmentSize = (int) (soleOriginal.Length / getDivider(this.Threads * (int)segmentationCoeficient, soleOriginal.Length));
             else
                 localSegmentSize = SegmentSize;
-            //Pivot Selection
+            
             for (int i = 0; i < matrix.Length; i++)
             {
-                double pivot;
-                //pick pivot
-                if (matrix[i][i] != 0)
-                {//all good
-                    pivot = matrix[i][i];
-                }
-                else
-                {//pivot is 0, need rows swapping 
-                    //swap
-                    if (matrix[i][i] == 0)
+                //Pivot Selection
+                double pivot = matrix[i][i];
+                int index = i;
+                //Pick pivot partial pivoting
+                for (int I = i; I < matrix.Length; I++)
+                {
+                    if (Math.Abs(matrix[I][i]) > Math.Abs(pivot))
                     {
-                        //matrix is always solvable (c)Stetsenko
-                        for (int j = i; j < matrix.Length - 1; j++)
-                        {
-                            if (matrix[i][j] != 0)
-                            {
-                                //singularityFlag = false;
-                                swapRows(matrix, i, j);
-                                break;
-                            }
-                        }
+                        pivot = matrix[I][i];
+                        index = I;
                     }
-                    pivot = matrix[i][i];
                 }
+                swapRows(matrix, i, index);
+
                 //technicly can lock on matrix[i] or matrix[m],
                 //but they aquire access to pointer of a subarray and never intervene each other
                 //Normalization 
@@ -112,33 +101,22 @@ namespace SoLE_Gauss
 
         public static double[][] Eliminate(double[][] matrix, int Threads)//paralell elimination
         {
-            //Pivot Selection
+           
             for (int i = 0; i < matrix.Length; i++)
             {
-                double pivot;
-                //pick pivot
-                if (matrix[i][i] != 0)
-                {//all good
-                    pivot = matrix[i][i];
-                }
-                else
-                {//pivot is 0, need rows swapping 
-                    //swap
-                    if (matrix[i][i] == 0)
-                    {
-                        //matrix is always solvable (c)Stetsenko
-                        for (int j = i; j < matrix.Length - 1; j++)
-                        {
-                            if (matrix[i][j] != 0)
-                            {
-                                //singularityFlag = false;
-                                swapRows(matrix, i, j);
-                                break;
-                            }
-                        }
+                //Pivot Selection
+                double pivot = matrix[i][i];
+                int index = i;
+                //Pick pivot partial pivoting
+                for (int I = i; I < matrix.Length; I++)
+                {
+                    if (Math.Abs(matrix[I][i]) > Math.Abs(pivot))
+                    { //pick pivot
+                        pivot = matrix[I][i];
+                        index = I;
                     }
-                    pivot = matrix[i][i];
                 }
+                swapRows(matrix, i, index);
                 //technicly can lock on matrix[i] or matrix[m],
                 //but they aquire access to pointer of a subarray and never intervene each other
                 //Normalization 

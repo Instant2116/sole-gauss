@@ -16,8 +16,8 @@ namespace SoLE_Gauss
             List<Report> reportList2 = new List<Report>();//Paralell
             //List<Report> reportList3 = new List<Report>();//Segmented
             Stopwatch stopwatch = new Stopwatch();
-
-            string testSoLEFile1 = "SimpleSoLE2.txt";
+            
+            string testSoLEFile1 = "MidSoLE3.txt";
             SoLE soLE1 = new SoLE(Resources.Path + testSoLEFile1);
             GaussElimination gaussEliminationDemonstration = new GaussElimination(soLE1.GetMatrix());
             gaussEliminationDemonstration.Eliminate();
@@ -29,7 +29,7 @@ namespace SoLE_Gauss
             gaussEliminationDemonstration.showSolution();
             Console.WriteLine();
             Console.WriteLine("CheckSolution: " + gaussEliminationDemonstration.CheckSolution());
-
+            
             string testSoLEFile2 = "MidSoLE2.txt";
             SoLE soLE2 = new SoLE(Resources.Path + testSoLEFile2);
             GaussEliminationParalell gaussEliminationParalellDemonstration = new GaussEliminationParalell(soLE2.GetMatrix(), 10);
@@ -73,7 +73,7 @@ namespace SoLE_Gauss
                         TimeSpan timeGaussParalellTime = stopwatch.Elapsed;
                         reportList2.Add(new Report(size, threads, timeGaussParalellTime));
 
-                        /*
+                        
                         for (int j = 1; j < 10; j++)
                         {
                             Console.Write("gaussEliminationSegmented: ");
@@ -85,7 +85,7 @@ namespace SoLE_Gauss
                             TimeSpan gaussEliminationSegmentedTime = stopwatch.Elapsed;
                             reportList3.Add(new Report(size, threads, gaussEliminationSegmentedTime));
                             Console.WriteLine();
-                        }*/
+                        }*
                         Console.WriteLine();
                     }
                 }
